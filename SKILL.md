@@ -122,34 +122,60 @@ vault="<vault_name>"
 | **读取页面内容** | `obsidian vault="..." read path="wiki/xxx.md"` | 读取文件 |
 | **读取模板** | `obsidian vault="..." template:read name="模板名"` | 需 Obsidian 打开 |
 
-### Python + obsidian-cli 混合工作流（推荐）
+### 文件写入策略（重要更新）
 
-**文件写入流程**：Python 生成内容 → 临时文件 → obsidian CLI 写入 vault
+> **⚠️ 经验教训**：obsidian-cli 的 `content` 参数不适合长内容（>500字），会截断！请务必遵循以下策略。
+
+#### 判断标准
+
+| 内容长度 | 推荐方式 | 原因 |
+|----------|----------|------|
+| **短内容（<500字）** | `obsidian create content=xxx` | CLI 写入，绕过文件锁 |
+| **长内容（>500字）** | `write_to_file` | 直接写文件，避免截断 |
+| **追加日志** | `obsidian append` | 适合短日志条目 |
+| **编辑文件中间部分** | `replace_in_file` | 精确替换，避免重复 |
+
+#### 长内容写入流程
 
 ```bash
-# Step 1: Python 生成内容到临时文件
-# content = generate_page_content()
-# with open("temp.md", "w", encoding="utf-8") as f:
-#     f.write(content)
-
-# Step 2: obsidian CLI 写入 vault（绕过文件锁）
-# PowerShell:
-$content = Get-Content "temp.md" -Raw -Encoding UTF8
-obsidian vault="<vault>" create path="wiki/path/page.md" content=$content silent overwrite
+# Step 1: 使用 write_to_file 直接写入完整内容
+# Step 2: （可选）验证文件是否完整
+obsidian vault="<vault>" read path="wiki/path/page.md"
 ```
 
-> **⚠️ 多行内容注入**：不要用 `\n` 转义（会导致截断），用 PowerShell 变量 `$content` 注入。
+#### 短内容写入流程（Obsidian 打开时）
 
-### 何时用 Python vs obsidian-cli
+```bash
+# 短内容可以用 CLI 写入
+obsidian vault="<vault>" create path="wiki/path/page.md" content="简短内容" silent overwrite
 
-| 任务 | 推荐方案 |
-|------|---------|
-| 新建/覆盖 wiki 页面 | **obsidian CLI**（绕过文件锁） |
-| 追加 log.md | **obsidian CLI append** |
-| 批量文件操作 | Python |
-| 编辑文件中间部分 | Python replace_in_file |
-| lint 健康检查 | **obsidian CLI**（内置精准命令） |
-| 全文搜索内容 | **obsidian CLI search** |
+# 追加日志
+obsidian vault="<vault>" append path="log.md" content="## [2026-04-08] log entry"
+```
+
+> **⚠️ CLI 写入长内容的风险**：如果内容包含代码块（反引号）、特殊字符或超过命令行长度限制，会被截断！宁可多用 write_to_file。
+
+### 何时用 Python/File工具 vs obsidian-cli
+
+| 任务 | 推荐方案 | 说明 |
+|------|---------|------|
+| **新建/覆盖 wiki 页面**（长内容） | **write_to_file** | 避免截断风险 |
+| **新建/覆盖 wiki 页面**（短内容） | `obsidian create` | Obsidian 打开时用 |
+| **追加日志** | `obsidian append` | 适合短条目 |
+| **编辑文件中间部分** | `replace_in_file` | 精确替换 |
+| **lint 健康检查** | **obsidian CLI** | 内置精准命令 |
+| **全文搜索** | `obsidian search` | 内置搜索 |
+| **页面关系查询** | `obsidian backlinks/links` | 内置命令 |
+| **文件统计** | `obsidian files folder` | 内置命令 |
+
+### 临时文件管理
+
+如果处理过程中创建了临时文件（如 `temp.md`），**必须及时删除**：
+
+```bash
+# 处理完成后检查并删除临时文件
+rm temp_source.md
+```
 
 ---
 
@@ -327,22 +353,22 @@ chmod +x "<skill_dir>/scripts/init-wiki.sh"
    - 核心观点（3-5 个要点）
    - 关键概念（3-5 个）
    - 与已有素材的关联
-3. **生成素材摘要页** → **obsidian CLI 写入** `wiki/sources/`
-4. **更新或创建实体页** → **obsidian CLI 写入** `wiki/entities/`
-5. **更新或创建主题页** → **obsidian CLI 写入** `wiki/topics/`
-6. **更新 index.md**（表格格式：`| [[页面名]] | 一句话描述 | YYYY-MM-DD |`）
-7. **更新 log.md** → **obsidian CLI append**
-   ```
-   ## [YYYY-MM-DD] ingest | {素材标题}
-   Source: {来源}
-   Pages affected: {列表}
-   ---
-   ```
+3. **生成素材摘要页** → **write_to_file** `wiki/sources/`
+   > ⚠️ 素材摘要通常较长，用 write_to_file 避免截断
+4. **更新或创建实体页** → **write_to_file** `wiki/entities/`
+   > 如果内容很短（<500字），可用 obsidian CLI
+5. **更新或创建主题页** → **write_to_file** `wiki/topics/`
+6. **更新 index.md** → **replace_in_file**（追加新条目到表格）
+7. **更新 log.md** → **replace_in_file**（追加 ingest 记录）
 8. **向用户展示结果**
+
+> 💡 **验证文件完整性**：写入后读取前 30 行确认内容完整
 
 ### 简化处理（短素材 <= 1000 字）
 
 只生成素材摘要 + 提取 1-3 个关键概念，不创建/更新主题页。
+
+> 💡 简化处理的文件写入仍建议用 write_to_file，除非确认内容非常简短。
 
 ---
 
@@ -390,9 +416,22 @@ index 一致性：
 ### 修复优先级
 
 1. **断链 → 创建缺失实体/主题页**（阻塞其他问题）
+   > 发现断链后，立即创建对应实体页，用 write_to_file 写入
+   > 创建后记得更新 index.md 和 log.md
 2. **孤立页面 → 添加到相关页面**
 3. **死链页面 → 检查是否孤立或真的无需链接**
 4. **index 不一致 → 更新 index.md**
+
+### 断链修复流程
+
+```
+1. obsidian unresolved verbose → 获取断链列表
+2. 对每个断链 [[名称]]:
+   a. 判断类型：实体页 / 主题页
+   b. write_to_file 创建页面
+   c. replace_in_file 更新 index.md
+3. replace_in_file 更新 log.md（记录修复）
+```
 
 ---
 
