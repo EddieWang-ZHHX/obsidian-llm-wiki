@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+env/
+.env
+
+# conda
+/envs/
+/conda-envs/
+site-packages/
+*.egg-info/
+
+# Editor
+.DS_Store
+Thumbs.db
+*.log
+
+# Obsidian vault
+.git/
