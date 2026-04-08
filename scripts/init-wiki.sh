@@ -32,8 +32,6 @@ SKILL_NAME="obsidian-llm-wiki"
 declare -a TEMPLATE_PATHS=(
     "$SCRIPT_DIR/../templates"                  # skill 结构
     "$SCRIPT_DIR/templates"                     # 脚本同级 templates/
-    "/home/$USER/.workbuddy/skills/$SKILL_NAME/templates"
-    "/home/eddie/.workbuddy/skills/$SKILL_NAME/templates"
     "/root/.workbuddy/skills/$SKILL_NAME/templates"
     "$HOME/.workbuddy/skills/$SKILL_NAME/templates"
 )
@@ -48,7 +46,7 @@ done
 
 if [[ -z "$TEMPLATES_DIR" ]]; then
     echo -e "${RED}[ERROR] 找不到模板目录。确认 skill 已正确安装。${NC}"
-    echo "[DEBUG] 已检查: ${TEMPLATE_PATHS[*]}"
+    echo "[DEBUG] 已检查：${TEMPLATE_PATHS[*]}"
     exit 1
 fi
 
@@ -57,7 +55,7 @@ fi
 # -----------------------------------------------------------------------------
 show_help() {
     cat << EOF
-用法: $(basename "$0") [VAULT_PATH] [TOPIC]
+用法：$(basename "$0") [VAULT_PATH] [TOPIC]
 
 初始化一个新的 obsidian-llm-wiki 知识库 vault。
 
@@ -66,7 +64,7 @@ show_help() {
   TOPIC        知识库主题名称（可选，默认 "我的知识库"）
 
 示例:
-  $(basename "$0") ~/Documents/MyWiki "AI学习"
+  $(basename "$0") ~/Documents/MyWiki "AI 学习"
   $(basename "$0")                    # 交互式模式
 
 EOF
@@ -81,12 +79,12 @@ init_wiki() {
 
     echo -e "${CYAN}=== 初始化 obsidian-llm-wiki 知识库 ===${NC}"
     echo -e "Vault: $VAULT_PATH"
-    echo -e "主题: $TOPIC"
+    echo -e "主题：$TOPIC"
     echo ""
 
     # 检查模板目录
     if [[ ! -d "$TEMPLATES_DIR" ]]; then
-        echo -e "${RED}[ERROR] 模板目录不存在: $TEMPLATES_DIR${NC}"
+        echo -e "${RED}[ERROR] 模板目录不存在：$TEMPLATES_DIR${NC}"
         exit 1
     fi
 
@@ -239,12 +237,12 @@ EOF
 
     echo ""
     echo -e "${CYAN}=== 初始化完成 ===${NC}"
-    echo -e "Vault 路径: $VAULT_PATH"
+    echo -e "Vault 路径：$VAULT_PATH"
     echo ""
     echo -e "${YELLOW}下一步：${NC}"
     echo "  1. 用 Obsidian 打开这个文件夹"
     echo "  2. 告诉 AI '帮我消化这篇素材'"
-    echo "  3. AI 会自动整理知识到 wiki/"
+    echo "  3. AI 自动整理知识到 wiki/"
 }
 
 # -----------------------------------------------------------------------------
@@ -263,17 +261,33 @@ else
     # 交互式模式
     echo -n "请输入 vault 路径（如 ~/Documents/MyWiki）："
     read -r VAULT_PATH
-    echo -n "请输入知识库主题（如 AI学习，默认 '我的知识库'）："
+    echo -n "请输入知识库主题（如 AI 学习，默认 '我的知识库'）："
     read -r TOPIC
     TOPIC="${TOPIC:-我的知识库}"
 fi
 
-# 展开 ~ 和相对路径
-VAULT_PATH="$(eval echo "$VAULT_PATH")"
+# 安全地展开 ~ 为 $HOME（不使用 eval，避免 shell 注入）
+if [[ "$VAULT_PATH" == "~"* ]]; then
+    VAULT_PATH="${VAULT_PATH/#\~/$HOME}"
+fi
+
+# 转换为绝对路径（使用 realpath，不使用 eval）
+if [[ -d "$VAULT_PATH" ]]; then
+    VAULT_PATH="$(realpath "$VAULT_PATH")"
+elif [[ "$VAULT_PATH" != /* ]]; then
+    # 相对路径：拼接到当前目录
+    VAULT_PATH="$(pwd)/$VAULT_PATH"
+fi
+
+# 安全验证：路径不能以 - 开头（防止选项注入）
+if [[ "$VAULT_PATH" == -* ]]; then
+    echo -e "${RED}[ERROR] Vault 路径不能以 '-' 开头${NC}"
+    exit 1
+fi
 
 # 创建 vault 根目录（如果不存在）
 if [[ ! -d "$VAULT_PATH" ]]; then
-    echo -e "${YELLOW}[CREATE] vault 根目录: $VAULT_PATH${NC}"
+    echo -e "${YELLOW}[CREATE] vault 根目录：$VAULT_PATH${NC}"
     mkdir -p "$VAULT_PATH"
 fi
 

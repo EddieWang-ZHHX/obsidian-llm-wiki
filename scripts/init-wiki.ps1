@@ -8,7 +8,7 @@
 .PARAMETER Topic
     知识库主题名称。
 .EXAMPLE
-    .\init-wiki.ps1 -VaultPath "C:\MyVault" -Topic "AI学习"
+    .\init-wiki.ps1 -VaultPath "C:\MyVault" -Topic "AI 学习"
 #>
 
 param(
@@ -21,11 +21,44 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# 安全验证：VaultPath 参数
+# 1. 不能为空
+# 2. 不能以 - 开头（防止参数注入）
+# 3. 不能包含危险字符
+if ([string]::IsNullOrWhiteSpace($VaultPath)) {
+    Write-Error "VaultPath 不能为空"
+    exit 1
+}
+
+if ($VaultPath.StartsWith("-")) {
+    Write-Error "VaultPath 不能以 '-' 开头"
+    exit 1
+}
+
 # 解析绝对路径
-$VaultPath = (Resolve-Path $VaultPath -ErrorAction SilentlyContinue) 2>$null
-if (-not $VaultPath) {
-    $VaultPath = $PSScriptRoot
-    Write-Host "[INFO] 使用脚本所在目录: $VaultPath"
+try {
+    # 展开环境变量（如 %USERPROFILE%）
+    $VaultPath = [Environment]::ExpandEnvironmentVariables($VaultPath)
+    
+    # 处理 ~ 路径（PowerShell 不自动展开 ~）
+    if ($VaultPath.StartsWith("~")) {
+        $VaultPath = $VaultPath.Replace("~", $HOME)
+    }
+    
+    # 尝试解析现有路径
+    if (Test-Path $VaultPath) {
+        $VaultPath = (Resolve-Path $VaultPath).Path
+    } else {
+        # 路径不存在，手动构建绝对路径
+        if (-not [System.IO.Path]::IsPathRooted($VaultPath)) {
+            $VaultPath = [System.IO.Path]::Combine((Get-Location).Path, $VaultPath)
+        }
+        # 规范化路径（移除 . 和 ..）
+        $VaultPath = [System.IO.Path]::GetFullPath($VaultPath)
+    }
+} catch {
+    Write-Error "无效的 Vault 路径：$_"
+    exit 1
 }
 
 # 获取 skill 目录（模板源）
@@ -33,13 +66,13 @@ $SkillDir = Split-Path -Parent $PSScriptRoot
 $TemplatesDir = Join-Path $SkillDir "templates"
 
 if (-not (Test-Path $TemplatesDir)) {
-    Write-Error "模板目录不存在: $TemplatesDir"
+    Write-Error "模板目录不存在：$TemplatesDir"
     exit 1
 }
 
 Write-Host "=== 初始化 obsidian-llm-wiki 知识库 ===" -ForegroundColor Cyan
 Write-Host "Vault: $VaultPath"
-Write-Host "主题: $Topic"
+Write-Host "主题：$Topic"
 Write-Host ""
 
 # 创建目录结构
@@ -200,7 +233,7 @@ Write-Host "[CREATE] log.md" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "=== 初始化完成 ===" -ForegroundColor Cyan
-Write-Host "Vault 路径: $VaultPath" -ForegroundColor White
+Write-Host "Vault 路径：$VaultPath" -ForegroundColor White
 Write-Host ""
 Write-Host "下一步：" -ForegroundColor Yellow
 Write-Host "  1. 用 Obsidian 打开这个文件夹" -ForegroundColor White
