@@ -443,3 +443,9 @@ obsidian vault="<vault>" recents total   # 最近打开
 - 无凭据要求
 - 只读写 vault 内文件
 - 文件操作通过 obsidian-cli（沙箱内）
+
+---
+
+## 致谢
+
+本 skill 基于 [llm-wiki-skill](https://github.com/sdyckjq-lab/llm-wiki-skill) 项目构建，感谢原作者的启发和贡献。
