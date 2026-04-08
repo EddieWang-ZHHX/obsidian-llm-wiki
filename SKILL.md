@@ -271,18 +271,22 @@ def create_entity_page(vault_root, title, page_type, key_facts, sources):
 
 ### 一键初始化（推荐）
 
-**Windows (PowerShell)：**
-```powershell
-& "<skill_dir>\scripts\init-wiki.ps1" -VaultPath "C:\MyVault" -Topic "AI学习"
-```
+**跨平台初始化脚本（Windows / macOS / Linux）：**
 
-**macOS / Linux (bash)：**
 ```bash
+# Windows (Git Bash / WSL)
+chmod +x "<skill_dir>/scripts/init-wiki.sh"
+"<skill_dir>/scripts/init-wiki.sh" "C:/MyVault" "AI学习"
+
+# macOS / Linux
 chmod +x "<skill_dir>/scripts/init-wiki.sh"
 "<skill_dir>/scripts/init-wiki.sh" ~/MyVault "AI学习"
+
 # 或不带参数运行交互式模式
 "<skill_dir>/scripts/init-wiki.sh"
 ```
+
+> 💡 **Windows 用户提示**：使用 **Git Bash** 或 **WSL** 运行脚本
 
 脚本自动完成：
 - 创建 `raw/` 和 `wiki/` 完整目录结构
@@ -457,10 +461,9 @@ obsidian vault="<vault>" recents total   # 最近打开
    - 使用通用路径查找策略
    - 兼容不同用户环境
 
-3. **PowerShell 参数注入** - `init-wiki.ps1` 增加参数验证
-   - 检查空值
-   - 禁止以 `-` 开头的路径（防止参数注入）
-   - 使用 `.NET Path` 类安全处理路径
+3. **跨平台脚本安全** - 统一使用 bash 脚本
+   - 移除 PowerShell 脚本（避免 ClawHub 安全限制）
+   - bash 脚本提供完整的路径验证和规范化
 
 **🔒 安全最佳实践：**
 - 不使用 `eval` 处理用户输入
